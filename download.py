@@ -1,8 +1,12 @@
 import requests
 from html.parser import HTMLParser
 import datetime as dt
+from os.path import exists
+from os.path import join
+from os import scandir
 
 #configura parser para filtrar los enlaces a los datos
+# en un catalogo THREDDS
 #etiqueta A
 #atributo href
 class MyHTMLParser(HTMLParser):
@@ -15,25 +19,65 @@ class MyHTMLParser(HTMLParser):
                 if atr =='href':
                     if 'dataset' in val:
                         self.dataset.append(val)
-fmt = 'catalog.html?dataset=GOMu0.04/expt_90.1m000/FMRC/runs/GOMu0.04_901m000_FMRC_RUN_%Y-%m-%dT%H:%M:%S%z'
-url = 'http://ncss.hycom.org/thredds/catalog/GOMu0.04/expt_90.1m000/FMRC/runs/catalog.html'
-#url = 'https://tds.hycom.org/thredds/catalog/GOMu0.04/expt_90.1m000/FMRC/runs/catalog.html'
-page = requests.get(url)
-if page.status_code != 200:
-    print('Error, status:', page.status_code)
-    exit()
-else:
-    print('servidor en línea')
-parser = MyHTMLParser()
-parser.feed(page.text)
-hoy =dt.datetime.now(dt.timezone.utc)
-print('fecha actual:', hoy)
-hoy = dt.datetime(hoy.year, hoy.month, hoy.day, tzinfo=dt.timezone.utc)
-#asume el primero como el más reciente
-ds_str = parser.dataset[0]
-ds_date = dt.datetime.strptime(ds_str, fmt)
-print('ultimo archivo:', ds_str,ds_date)
-if ds_date>hoy:
-    print('Datos actuales disponibles')
-else:
-    print('No hay datos actuales')
+
+def check_update( local, remoto):
+    #obteniendo fecha UTC y truncando a dia
+    hoy =dt.datetime.now(dt.timezone.utc)
+    print('fecha actual:', hoy)
+    hoy = dt.datetime(
+            hoy.year,
+            hoy.month,
+            hoy.day,
+            12,
+            tzinfo=dt.timezone.utc)
+    with scandir(local['path']) as filenames:
+        for filename in filenames:
+            if filename.is_file():
+                try:
+                    local_date = dt.datetime.strptime(filename.name, local['name_fmt'])
+                except:
+                    continue
+                try:
+                    if local_date<=local['fecha']:
+                        new_local = False
+                except:
+                    new_local = True
+                if new_local == True:
+                    local['fecha'] = local_date
+                    local['nombre'] = filename.name
+                    local['day'] = dt.datetime(
+                            local_date.year,
+                            local_date.month,
+                            local_date.day,
+                            tzinfo =dt.timezone.utc)
+    #Obteniendo página
+    page = requests.get( remoto['catalog'])
+    if page.status_code != 200:
+        #print('Error, status:', page.status_code)
+        return None
+    parser = MyHTMLParser()
+    #Analizando contenido
+    parser.feed(page.text)
+    #asume el primero como el más reciente
+    ds_str = parser.dataset[0]
+    ds_date = dt.datetime.strptime(ds_str, remoto['catalog_fmt'])
+    try:
+        new_remoto = ds_date>local['fecha']
+        if new_remoto == True:
+            remoto['fecha']= ds_date
+
+    except KeyError:
+        return True
+    return new_remoto
+
+def get_req(remoto):
+    req = remoto['request']['URL']
+    req += remoto['fecha'].strftime(remoto['request']['name_fmt'])
+    var_req= remoto['request']['vars']
+    page = requests.get(req, params =var_req)
+    filename= join(remoto['path'],
+            remoto['fecha'].strftime(remoto['name_fmt']))
+    with open(filename,'wb') as fp:
+        fp.write(page.content)
+    print(filename, 'guardado')
+

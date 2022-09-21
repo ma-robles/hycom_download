@@ -67,6 +67,7 @@ def check_update( local, remoto):
             remoto['fecha']= ds_date
 
     except KeyError:
+        remoto['fecha']= ds_date
         return True
     return new_remoto
 

@@ -103,6 +103,7 @@ def prep_wrf(filename):
     for s in secs:
         time.append(dt.datetime.fromtimestamp(s, dt.timezone.utc))
     t_units = time[0].strftime("hours since %Y-%m-%d %H:%M:%S UTC")
+    hours = []
     for t in time:
         hours.append((t-time[0]).total_seconds()/3600)
     hours = np.array(hours)

@@ -58,9 +58,14 @@ def check_update( local, remoto):
     parser = MyHTMLParser()
     #Analizando contenido
     parser.feed(page.text)
+    #busca el primer elemento en coincidir con el formato
     #asume el primero como el más reciente
-    ds_str = parser.dataset[0]
-    ds_date = dt.datetime.strptime(ds_str, remoto['catalog_fmt'])
+    for ds_link in parser.dataset:
+        try:
+            ds_date = dt.datetime.strptime(ds_link, remoto['catalog_fmt'])
+            break
+        except:
+            pass
     try:
         new_remoto = ds_date>local['fecha']
         if new_remoto == True:

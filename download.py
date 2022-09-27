@@ -6,6 +6,7 @@ from os.path import join
 from os import scandir
 from netCDF4 import Dataset
 import numpy as np
+import os
 
 #configura parser para filtrar los enlaces a los datos
 # en un catalogo THREDDS
@@ -139,3 +140,10 @@ def prep_wrf(filename):
         u[:] = data_u
         v[:] = data_v
 
+def prep_hycom(filename):
+    if os.stat(filename).st_size < 1024:
+        os.remove(filename)
+        print('archivo demadiado pequeño')
+        print(filename, 'borrado')
+    else:
+        print('tamaño de archivo adecuado')

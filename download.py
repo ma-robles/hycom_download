@@ -88,6 +88,7 @@ def get_req(remoto):
     with open(filename,'wb') as fp:
         fp.write(page.content)
     print(filename, 'guardado')
+    return(filename)
 
 def prep_wrf(filename):
     print('procesando:', filename)
